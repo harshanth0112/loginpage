@@ -1,0 +1,201 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-ink: #0f172a;
+    --color-paper: #f8f6f0;
+    --color-paper-card: #ffffff;
+    --color-border: #e2ded5;
+    --color-border-subtle: #ece8df;
+    --color-muted: #64748b;
+    --color-accent: #c2410c;
+    --color-accent-hover: #9a3412;
+    --color-accent-focus: rgba(194, 65, 12, 0.15);
+    --color-error: #991b1b;
+    --color-error-bg: #fef2f2;
+    --color-error-border: #b91c1c;
+
+    --font-serif: "Fraunces", Georgia, serif;
+    --font-sans: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-mono: "JetBrains Mono", Menlo, monospace;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+
+  /* Override browser autofill pale blue / yellow box */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    box-shadow: 0 0 0 1000px #ffffff inset !important;
+    -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+    -webkit-text-fill-color: var(--color-ink) !important;
+    transition: background-color 9999s ease-in-out 0s;
+  }
+}
+
+.font-editorial {
+  font-family: var(--font-serif);
+  letter-spacing: -0.025em;
+}
+
+.font-mono-code {
+  font-family: var(--font-mono);
+}
+
+/* Studio-grade live architectural animations */
+@keyframes markPulse {
+  0%, 100% {
+    stroke-dashoffset: 0;
+    opacity: 0.85;
+  }
+  50% {
+    stroke-dashoffset: 16;
+    opacity: 0.35;
+  }
+}
+
+@keyframes gridDrift {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(32px);
+  }
+}
+
+@keyframes beaconPing {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+}
+
+.live-pulse-ring {
+  animation: beaconPing 2.5s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+}
+
+.live-grid-drift {
+  animation: gridDrift 20s linear infinite;
+}
+
+.live-dash-anim {
+  stroke-dasharray: 4 4;
+  animation: markPulse 4s ease-in-out infinite;
+}
+
+/* Compact Laptop / Short Viewport Adjustment: height <= 720px (Rule 7) */
+@media (max-height: 720px) {
+  .short-hide {
+    display: none !important;
+  }
+  .short-hide-subtext {
+    display: none !important;
+  }
+  .short-compact-gap {
+    gap: 0.625rem !important; /* 10px */
+  }
+  .short-compact-space > * + * {
+    margin-top: 0.625rem !important; /* 10px */
+  }
+  .short-compact-input {
+    height: 40px !important;
+    min-height: 40px !important;
+  }
+  .short-compact-button {
+    height: 42px !important;
+    min-height: 42px !important;
+  }
+  .short-compact-text {
+    font-size: 1.5rem !important; /* 24px */
+    line-height: 1.15 !important;
+  }
+}
+
+/* Specific short viewport rules for height <= 700px (Dashboard) */
+@media (max-height: 700px) {
+  .short-hide-footnote {
+    display: none !important;
+  }
+  .short-sidebar-item {
+    min-height: 40px !important;
+    height: 40px !important;
+    padding-top: 0.375rem !important;
+    padding-bottom: 0.375rem !important;
+  }
+  .short-chart-height {
+    height: clamp(160px, 28vh, 240px) !important;
+  }
+  .short-activity-row {
+    min-height: 52px !important;
+    height: 52px !important;
+    padding-top: 0.375rem !important;
+    padding-bottom: 0.375rem !important;
+  }
+  .short-card-padding {
+    padding: 0.625rem 0.75rem !important;
+  }
+  .short-greeting-text {
+    font-size: 1.625rem !important; /* 26px */
+    line-height: 1.15 !important;
+  }
+}
+
+/* Custom subtle scrollbar for internal activity scrolling */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Touch-safe hover rules: only apply hover styles on devices with cursor pointer */
+@media (hover: hover) and (pointer: fine) {
+  .hover-ink:hover {
+    background-color: #1e293b !important;
+  }
+  .hover-accent:hover {
+    background-color: var(--color-accent-hover) !important;
+  }
+}
+
+/* Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
