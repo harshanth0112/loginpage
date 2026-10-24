@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import AuthLayout from "../components/AuthLayout";
+import API_BASE from "../utils/api";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -107,7 +108,7 @@ export default function Register() {
 
     setLoading(true);
     try {
-      const { data } = await axios.post("http://localhost:5000/api/register", {
+      const { data } = await axios.post(`${API_BASE}/api/register`, {
         name: form.name,
         email: form.email,
         password: form.password,
@@ -135,7 +136,7 @@ export default function Register() {
         email: `${provider.toLowerCase()}@nimbus.com`,
       };
 
-      const { data } = await axios.post("http://localhost:5000/api/oauth", {
+      const { data } = await axios.post(`${API_BASE}/api/oauth`, {
         provider,
         name: profile.name,
         email: profile.email,

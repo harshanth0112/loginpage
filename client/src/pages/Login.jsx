@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import AuthLayout from "../components/AuthLayout";
+import API_BASE from "../utils/api";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -109,7 +110,7 @@ export default function Login() {
 
     setLoading(true);
     try {
-      const { data } = await axios.post("http://localhost:5000/api/login", form);
+      const { data } = await axios.post(`${API_BASE}/api/login`, form);
       completeLogin(data);
     } catch (err) {
       setServerError(err.response?.data?.message || "Authentication failed. Check credentials.");
@@ -131,7 +132,7 @@ export default function Login() {
         email: `${provider.toLowerCase()}@nimbus.com`,
       };
 
-      const { data } = await axios.post("http://localhost:5000/api/oauth", {
+      const { data } = await axios.post(`${API_BASE}/api/oauth`, {
         provider,
         name: profile.name,
         email: profile.email,

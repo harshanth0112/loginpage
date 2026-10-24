@@ -1,0 +1,30 @@
+services:
+  # ── Backend: Express API ──────────────────────────────────────────────────
+  - type: web
+    name: nimbus-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CLIENT_URL
+        # ⚠️  After deploying the static site below, paste its URL here
+        value: https://nimbus-login.onrender.com
+
+  # ── Frontend: Vite Static Site ────────────────────────────────────────────
+  - type: static
+    name: nimbus-login
+    rootDir: client
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    # Redirect all 404s to index.html so React Router works
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        # ⚠️  After deploying the backend above, paste its URL here
+        value: https://nimbus-api.onrender.com

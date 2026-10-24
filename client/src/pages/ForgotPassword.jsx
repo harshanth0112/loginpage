@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import AuthLayout from "../components/AuthLayout";
+import API_BASE from "../utils/api";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -39,7 +40,7 @@ export default function ForgotPassword() {
 
     setLoading(true);
     try {
-      const { data } = await axios.post("http://localhost:5000/api/forgot-password", { email });
+      const { data } = await axios.post(`${API_BASE}/api/forgot-password`, { email });
       setSubmitted(true);
       if (data.demoHint) {
         setDemoHint(data.demoHint);

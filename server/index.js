@@ -2,7 +2,21 @@ import express from "express";
 import cors from "cors";
 
 const app = express();
-app.use(cors({ origin: "http://localhost:5173" }));
+const ALLOWED_ORIGINS = [
+  "http://localhost:5173",
+  process.env.CLIENT_URL,        // set this in Render dashboard
+].filter(Boolean);
+
+app.use(
+  cors({
+    origin: (origin, cb) => {
+      // allow requests with no origin (curl, Render health checks)
+      if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+      cb(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 // Mock user data (no database needed)
@@ -88,6 +102,6 @@ app.post("/api/oauth", (req, res) => {
   });
 });
 
-const PORT = 5000;
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
