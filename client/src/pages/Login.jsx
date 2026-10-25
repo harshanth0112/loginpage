@@ -15,6 +15,11 @@ export default function Login() {
   const [oauthLoading, setOauthLoading] = useState(null);
   const [isFading, setIsFading] = useState(false);
 
+  // Demo credentials state
+  const isDev = import.meta.env.DEV;
+  const [showDemoToggle, setShowDemoToggle] = useState(false);
+  const [copied, setCopied] = useState(false);
+
   const emailInputRef = useRef(null);
   const passwordInputRef = useRef(null);
   const navigate = useNavigate();
@@ -25,6 +30,35 @@ export default function Login() {
     if (isDesktop && emailInputRef.current) {
       emailInputRef.current.focus();
     }
+  }, []);
+
+  // Check on mount and delayed mount for browser autofilled values (Bug Fix 1)
+  useEffect(() => {
+    const syncAutofill = () => {
+      const emailVal = emailInputRef.current?.value;
+      const passVal = passwordInputRef.current?.value;
+
+      if (emailVal && emailVal.trim()) {
+        setForm((prev) => ({ ...prev, email: emailVal }));
+        if (emailRegex.test(emailVal.trim())) {
+          setErrors((prev) => ({ ...prev, email: "" }));
+        }
+      }
+      if (passVal) {
+        setForm((prev) => ({ ...prev, password: passVal }));
+        if (passVal.length >= 6) {
+          setErrors((prev) => ({ ...prev, password: "" }));
+        }
+      }
+    };
+
+    syncAutofill();
+    const t1 = setTimeout(syncAutofill, 100);
+    const t2 = setTimeout(syncAutofill, 400);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, []);
 
   // Escape key clears server error banner
@@ -38,29 +72,44 @@ export default function Login() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-    if (errors[e.target.name]) {
-      setErrors({ ...errors, [e.target.name]: "" });
+  // Clear errors immediately when field becomes valid
+  const handleInput = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+
+    if (name === "email") {
+      if (value.trim() && emailRegex.test(value.trim())) {
+        setErrors((prev) => ({ ...prev, email: "" }));
+      }
+    } else if (name === "password") {
+      if (value.length >= 6) {
+        setErrors((prev) => ({ ...prev, password: "" }));
+      }
     }
     setServerError("");
   };
 
-  // Inline validation on blur
+  const handleChange = (e) => {
+    handleInput(e);
+  };
+
+  // Inline validation on blur only
   const handleBlur = (field) => {
     const nextErrors = { ...errors };
     if (field === "email") {
-      if (!form.email.trim()) {
+      const val = emailInputRef.current?.value ?? form.email;
+      if (!val || !val.trim()) {
         nextErrors.email = "Email is required.";
-      } else if (!emailRegex.test(form.email.trim())) {
+      } else if (!emailRegex.test(val.trim())) {
         nextErrors.email = "Enter a valid email.";
       } else {
         delete nextErrors.email;
       }
     } else if (field === "password") {
-      if (!form.password) {
+      const val = passwordInputRef.current?.value ?? form.password;
+      if (!val) {
         nextErrors.password = "Password is required.";
-      } else if (form.password.length < 6) {
+      } else if (val.length < 6) {
         nextErrors.password = "Min. 6 characters.";
       } else {
         delete nextErrors.password;
@@ -69,17 +118,20 @@ export default function Login() {
     setErrors(nextErrors);
   };
 
-  const validate = () => {
+  const validate = (emailVal, passwordVal) => {
     const nextErrors = {};
-    if (!form.email.trim()) {
+    const eVal = emailVal !== undefined ? emailVal.trim() : form.email.trim();
+    const pVal = passwordVal !== undefined ? passwordVal : form.password;
+
+    if (!eVal) {
       nextErrors.email = "Email is required.";
-    } else if (!emailRegex.test(form.email.trim())) {
+    } else if (!emailRegex.test(eVal)) {
       nextErrors.email = "Enter a valid email.";
     }
 
-    if (!form.password) {
+    if (!pVal) {
       nextErrors.password = "Password is required.";
-    } else if (form.password.length < 6) {
+    } else if (pVal.length < 6) {
       nextErrors.password = "Min. 6 characters.";
     }
     return nextErrors;
@@ -96,7 +148,26 @@ export default function Login() {
 
   const handleSubmit = async (ev) => {
     ev.preventDefault();
-    const validationErrors = validate();
+
+    // Read directly from DOM / FormData on submit to handle autofill values (Bug Fix 1)
+    const formData = new FormData(ev.currentTarget);
+    const emailVal = (
+      formData.get("email") ??
+      emailInputRef.current?.value ??
+      form.email ??
+      ""
+    ).toString();
+    const passwordVal = (
+      formData.get("password") ??
+      passwordInputRef.current?.value ??
+      form.password ??
+      ""
+    ).toString();
+
+    // Keep form state in sync
+    setForm({ email: emailVal, password: passwordVal });
+
+    const validationErrors = validate(emailVal, passwordVal);
     setErrors(validationErrors);
 
     if (validationErrors.email) {
@@ -110,7 +181,10 @@ export default function Login() {
 
     setLoading(true);
     try {
-      const { data } = await axios.post(`${API_BASE}/api/login`, form);
+      const { data } = await axios.post(`${API_BASE}/api/login`, {
+        email: emailVal,
+        password: passwordVal,
+      });
       completeLogin(data);
     } catch (err) {
       setServerError(err.response?.data?.message || "Authentication failed. Check credentials.");
@@ -140,84 +214,135 @@ export default function Login() {
 
       completeLogin(data);
     } catch (err) {
-      setServerError(err.response?.data?.message || `${provider} popup was closed or authentication failed.`);
+      setServerError(
+        err.response?.data?.message || `${provider} popup was closed or authentication failed.`
+      );
     } finally {
       setOauthLoading(null);
     }
   };
 
+  const handleCopyCredentials = () => {
+    const credText = "demo@nimbus.com / Nimbus@123";
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(credText);
+    }
+    setForm({ email: "demo@nimbus.com", password: "Nimbus@123" });
+    if (emailInputRef.current) emailInputRef.current.value = "demo@nimbus.com";
+    if (passwordInputRef.current) passwordInputRef.current.value = "Nimbus@123";
+    setErrors({});
+    setServerError("");
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
   return (
-    <div className={`transition-opacity duration-150 ${isFading ? "opacity-0" : "opacity-100"}`}>
+    <div className={`w-full transition-opacity duration-150 ${isFading ? "opacity-0" : "opacity-100"}`}>
       <AuthLayout
-        headline="Secure access to your treasury operations."
-        subtext="Deterministic ledger infrastructure and programmatic settlement for enterprise balance sheets."
-        stats={["EST. 2024", "Consensus Active", "v2.18.0"]}
+        eyebrow="TRUSTED. SECURE. INTELLIGENT."
+        headline={{ line1: "Secure access to your", line2: "treasury operations." }}
+        paragraph="A unified platform to manage, monitor and optimize your institutional treasury operations with confidence."
+        footerItems={["EST. 2024", "Consensus Active", "v2.18.0"]}
       >
-        <div className="mb-3.5 sm:mb-4">
-          <h1 className="font-editorial text-[26px] sm:text-[28px] leading-tight text-[#0F172A] tracking-tight short-compact-text">
-            Sign in to your account
+        {/* Card Header: Welcome back + one-line subtitle */}
+        <div className="mb-5 sm:mb-6">
+          <h1 className="font-editorial text-[30px] sm:text-[32px] leading-tight text-[#0F172A] tracking-tight short-compact-text">
+            Welcome back
           </h1>
-          <p className="mt-1 text-xs sm:text-sm text-[#475569] line-clamp-1 short-hide-subtext">
-            Enter your credentials to access operations.
+          <p className="mt-1 text-xs sm:text-sm text-[#64748B] short-hide-subtext truncate">
+            Sign in to your Institutional Treasury Console
           </p>
         </div>
 
         {/* Login Form */}
-        <form onSubmit={handleSubmit} noValidate className="space-y-2.5 sm:space-y-3.5 short-compact-space">
-          {/* Email field */}
+        <form onSubmit={handleSubmit} noValidate className="space-y-4 short-compact-space">
+          {/* WORK EMAIL input with mail icon on left */}
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <label
-                htmlFor="email"
-                className="block text-[11px] font-bold uppercase tracking-wider text-[#334155]"
-              >
-                Work Email
-              </label>
-              {errors.email && (
-                <span id="email-error" className="text-xs text-[#991B1B] font-medium" role="alert">
-                  {errors.email}
-                </span>
-              )}
-            </div>
-            <input
-              ref={emailInputRef}
-              tabIndex={1}
-              id="email"
-              name="email"
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              required
-              value={form.email}
-              onChange={handleChange}
-              onBlur={() => handleBlur("email")}
-              placeholder="name@organization.com"
-              aria-invalid={errors.email ? "true" : undefined}
-              aria-describedby={errors.email ? "email-error" : undefined}
-              className={`w-full h-11 sm:h-12 short-compact-input bg-white px-3 text-base sm:text-sm text-[#0F172A] rounded-[4px] border transition-colors duration-150 placeholder:text-[#94A3B8] outline-none focus-visible:outline-none ${
+            <label
+              htmlFor="email"
+              className="block text-[11px] font-bold uppercase tracking-wider text-[#334155] mb-1.5"
+            >
+              Work Email
+            </label>
+            <div
+              className={`relative flex items-center h-12 short-compact-input bg-white rounded-lg border transition-all duration-150 ${
                 errors.email
-                  ? "border-[#B91C1C] focus-visible:border-[#B91C1C] focus-visible:ring-2 focus-visible:ring-[#B91C1C]/20"
-                  : "border-[#E2DED5] focus-visible:border-[#C2410C] focus-visible:ring-2 focus-visible:ring-[#C2410C]/20"
+                  ? "border-[#B91C1C] ring-2 ring-[#B91C1C]/15"
+                  : "border-[#CBD5E1] focus-within:border-[#C2410C] focus-within:ring-2 focus-within:ring-[#C2410C]/20"
               }`}
-            />
+            >
+              <span className="absolute left-3.5 text-[#64748B] pointer-events-none" aria-hidden="true">
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect width="20" height="16" x="2" y="4" rx="2" />
+                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                </svg>
+              </span>
+              <input
+                ref={emailInputRef}
+                tabIndex={1}
+                id="email"
+                name="email"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                required
+                value={form.email}
+                onChange={handleChange}
+                onInput={handleInput}
+                onBlur={() => handleBlur("email")}
+                placeholder="name@organization.com"
+                aria-invalid={errors.email ? "true" : undefined}
+                aria-describedby={errors.email ? "email-error" : undefined}
+                className="w-full h-full bg-transparent pl-11 pr-3 text-sm text-[#0F172A] rounded-lg placeholder:text-[#94A3B8] outline-none"
+              />
+            </div>
+            {/* Error message BELOW the input */}
+            {errors.email && (
+              <p id="email-error" className="mt-1 text-xs text-[#991B1B] font-medium" role="alert">
+                {errors.email}
+              </p>
+            )}
           </div>
 
-          {/* Password field */}
+          {/* PASSWORD input with lock icon on left and Show toggle on right */}
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <label
-                htmlFor="password"
-                className="block text-[11px] font-bold uppercase tracking-wider text-[#334155]"
-              >
-                Password
-              </label>
-              {errors.password && (
-                <span id="password-error" className="text-xs text-[#991B1B] font-medium" role="alert">
-                  {errors.password}
-                </span>
-              )}
-            </div>
-            <div className="relative">
+            <label
+              htmlFor="password"
+              className="block text-[11px] font-bold uppercase tracking-wider text-[#334155] mb-1.5"
+            >
+              Password
+            </label>
+            <div
+              className={`relative flex items-center h-12 short-compact-input bg-white rounded-lg border transition-all duration-150 ${
+                errors.password
+                  ? "border-[#B91C1C] ring-2 ring-[#B91C1C]/15"
+                  : "border-[#CBD5E1] focus-within:border-[#C2410C] focus-within:ring-2 focus-within:ring-[#C2410C]/20"
+              }`}
+            >
+              <span className="absolute left-3.5 text-[#64748B] pointer-events-none" aria-hidden="true">
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+              </span>
               <input
                 ref={passwordInputRef}
                 tabIndex={2}
@@ -229,95 +354,117 @@ export default function Login() {
                 required
                 value={form.password}
                 onChange={handleChange}
+                onInput={handleInput}
                 onBlur={() => handleBlur("password")}
                 placeholder="••••••••••••"
                 aria-invalid={errors.password ? "true" : undefined}
                 aria-describedby={errors.password ? "password-error" : undefined}
-                className={`w-full h-11 sm:h-12 short-compact-input bg-white pl-3 pr-12 text-base sm:text-sm text-[#0F172A] rounded-[4px] border transition-colors duration-150 placeholder:text-[#94A3B8] outline-none focus-visible:outline-none ${
-                  errors.password
-                    ? "border-[#B91C1C] focus-visible:border-[#B91C1C] focus-visible:ring-2 focus-visible:ring-[#B91C1C]/20"
-                    : "border-[#E2DED5] focus-visible:border-[#C2410C] focus-visible:ring-2 focus-visible:ring-[#C2410C]/20"
-                }`}
+                className="w-full h-full bg-transparent pl-11 pr-16 text-sm text-[#0F172A] rounded-lg placeholder:text-[#94A3B8] outline-none"
               />
               <button
                 tabIndex={3}
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 aria-label={showPassword ? "Hide password" : "Show password"}
-                className="min-h-[44px] min-w-[44px] absolute inset-y-0 right-0 flex items-center justify-center text-xs font-semibold text-[#475569] sm:hover:text-[#C2410C] focus-visible:text-[#C2410C] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C2410C]/30"
+                className="absolute right-3 text-xs font-semibold text-[#475569] hover:text-[#C2410C] focus-visible:text-[#C2410C] transition-colors p-1 rounded outline-none"
               >
                 {showPassword ? "Hide" : "Show"}
               </button>
             </div>
+            {/* Error message BELOW the input */}
+            {errors.password && (
+              <p id="password-error" className="mt-1 text-xs text-[#991B1B] font-medium" role="alert">
+                {errors.password}
+              </p>
+            )}
 
-            {/* Forgot password link below field */}
-            <div className="flex justify-end pt-1">
+            {/* Forgot password right-aligned under the password */}
+            <div className="flex justify-end pt-1.5">
               <Link
                 tabIndex={4}
                 to="/forgot-password"
-                className="min-h-[32px] inline-flex items-center text-xs text-[#475569] sm:hover:text-[#C2410C] focus-visible:text-[#C2410C] underline underline-offset-2 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C2410C]/30"
+                className="text-xs text-[#C2410C] hover:text-[#9A3412] underline underline-offset-2 transition-colors font-medium outline-none focus-visible:ring-1 focus-visible:ring-[#C2410C] rounded"
               >
                 Forgot password?
               </Link>
             </div>
           </div>
 
-          {/* Reserved server error banner above Continue button to prevent layout shifts */}
-          <div className="min-h-[26px] flex items-center">
-            {serverError && (
-              <div
-                role="alert"
-                aria-live="assertive"
-                className="w-full border-l-2 border-[#B91C1C] bg-[#FEF2F2] px-2.5 py-1 text-xs text-[#991B1B] break-words flex items-center justify-between"
+          {/* Server error banner - collapsed when no error (Bug Fix 2) */}
+          {serverError && (
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="w-full border-l-2 border-[#B91C1C] bg-[#FEF2F2] px-3 py-2 text-xs text-[#991B1B] rounded-r flex items-center justify-between transition-all duration-200"
+            >
+              <span className="truncate pr-2">{serverError}</span>
+              <button
+                type="button"
+                onClick={() => setServerError("")}
+                className="text-[#991B1B] font-bold text-xs hover:opacity-80 cursor-pointer"
+                aria-label="Dismiss alert"
               >
-                <span className="truncate">{serverError}</span>
-                <button
-                  type="button"
-                  onClick={() => setServerError("")}
-                  className="ml-2 text-[#991B1B] font-bold text-xs hover:opacity-80 cursor-pointer"
-                  aria-label="Dismiss alert"
-                >
-                  ✕
-                </button>
-              </div>
-            )}
-          </div>
+                ✕
+              </button>
+            </div>
+          )}
 
-          {/* Continue Submit Button */}
+          {/* Full-width rust button "Sign in →" (48px tall, arrow icon) */}
           <button
             tabIndex={5}
             type="submit"
             disabled={loading || !!oauthLoading}
-            className="w-full min-h-[44px] h-11 sm:h-12 short-compact-button rounded-[6px] bg-[#C2410C] text-white text-sm font-semibold tracking-wide flex items-center justify-center transition-all duration-150 active:scale-[0.99] sm:hover:bg-[#9A3412] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C2410C]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F8F6F0] disabled:opacity-75 cursor-pointer disabled:cursor-not-allowed"
+            className="w-full h-12 short-compact-button rounded-lg bg-[#C2410C] hover:bg-[#9A3412] text-white text-sm font-semibold tracking-wide flex items-center justify-center gap-2 transition-all duration-150 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C2410C]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:opacity-75 cursor-pointer disabled:cursor-not-allowed shadow-sm"
           >
             {loading ? (
               <span className="inline-flex items-center gap-2">
-                <svg width="18" height="18" viewBox="0 0 28 28" fill="none" aria-hidden="true" className="shrink-0 animate-spin">
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 28 28"
+                  fill="none"
+                  aria-hidden="true"
+                  className="shrink-0 animate-spin"
+                >
                   <rect x="2" y="2" width="11" height="11" stroke="#FFFFFF" strokeWidth="2" />
                   <rect x="15" y="15" width="11" height="11" stroke="#FFFFFF" strokeWidth="2" />
-                  <line x1="13" y1="2" x2="26" y2="15" stroke="#FFFFFF" strokeWidth="1.8" className="live-dash-anim" />
-                  <circle cx="8" cy="20" r="3" stroke="#FFFFFF" strokeWidth="1.8" />
                 </svg>
                 <span>Authenticating...</span>
               </span>
             ) : (
-              "Sign in"
+              <>
+                <span>Sign in</span>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                  <polyline points="12 5 19 12 12 19" />
+                </svg>
+              </>
             )}
           </button>
 
-          {/* Thin "or" divider */}
-          <div className="relative py-0.5">
+          {/* "OR" divider */}
+          <div className="relative py-1">
             <div className="absolute inset-0 flex items-center" aria-hidden="true">
               <div className="w-full border-t border-[#E2DED5]"></div>
             </div>
             <div className="relative flex justify-center text-[11px]">
-              <span className="bg-[#F8F6F0] px-2 font-bold uppercase tracking-wider text-[#64748B]">
+              <span className="bg-white px-3 font-bold uppercase tracking-wider text-[#64748B]">
                 or
               </span>
             </div>
           </div>
 
-          {/* Equal-width social OAuth buttons row (Google | GitHub) */}
+          {/* Two equal buttons: Continue with Google & Continue with GitHub */}
           <div className="grid grid-cols-2 gap-2.5">
             <button
               tabIndex={6}
@@ -325,7 +472,7 @@ export default function Login() {
               disabled={loading || !!oauthLoading}
               onClick={() => handleOAuth("Google")}
               aria-label="Continue with Google"
-              className="w-full min-h-[42px] h-11 sm:h-12 short-compact-button rounded-[6px] border border-[#E2DED5] bg-white px-2.5 py-1 text-xs font-semibold text-[#0F172A] sm:hover:border-[#0F172A] sm:hover:bg-[#FAF8F5] transition-colors duration-150 flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F172A]/20 disabled:opacity-60"
+              className="w-full h-11 short-compact-button rounded-lg border border-[#CBD5E1] bg-white px-2.5 py-1 text-xs font-semibold text-[#0F172A] hover:border-[#0F172A] hover:bg-[#FAF8F5] transition-colors duration-150 flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F172A]/20 disabled:opacity-60"
             >
               {oauthLoading === "Google" ? (
                 <span className="text-xs">Connecting...</span>
@@ -349,7 +496,9 @@ export default function Login() {
                       d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                     />
                   </svg>
-                  <span className="hidden min-[360px]:inline">Google</span>
+                  <span>
+                    <span className="oauth-btn-long">Continue with </span>Google
+                  </span>
                 </>
               )}
             </button>
@@ -360,52 +509,113 @@ export default function Login() {
               disabled={loading || !!oauthLoading}
               onClick={() => handleOAuth("GitHub")}
               aria-label="Continue with GitHub"
-              className="w-full min-h-[42px] h-11 sm:h-12 short-compact-button rounded-[6px] border border-[#E2DED5] bg-white px-2.5 py-1 text-xs font-semibold text-[#0F172A] sm:hover:border-[#0F172A] sm:hover:bg-[#FAF8F5] transition-colors duration-150 flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F172A]/20 disabled:opacity-60"
+              className="w-full h-11 short-compact-button rounded-lg border border-[#CBD5E1] bg-white px-2.5 py-1 text-xs font-semibold text-[#0F172A] hover:border-[#0F172A] hover:bg-[#FAF8F5] transition-colors duration-150 flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F172A]/20 disabled:opacity-60"
             >
               {oauthLoading === "GitHub" ? (
                 <span className="text-xs">Connecting...</span>
               ) : (
                 <>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="shrink-0 text-[#0F172A]">
-                    <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    aria-hidden="true"
+                    className="shrink-0 text-[#0F172A]"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      clipRule="evenodd"
+                      d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+                    />
                   </svg>
-                  <span className="hidden min-[360px]:inline">GitHub</span>
+                  <span>
+                    <span className="oauth-btn-long">Continue with </span>GitHub
+                  </span>
                 </>
               )}
             </button>
           </div>
         </form>
 
-        {/* Create account link */}
-        <div className="mt-3 pt-2.5 border-t border-[#E2DED5] text-center text-xs text-[#475569]">
-          <div className="min-h-[32px] flex items-center justify-center gap-1.5">
+        {/* Need an institutional account? Create account */}
+        <div className="mt-4 pt-3.5 border-t border-[#0F172A]/8 text-center text-xs text-[#64748B]">
+          <div className="flex items-center justify-center gap-1.5">
             <span>Need an institutional account?</span>
             <Link
               tabIndex={8}
               to="/register"
-              className="font-bold text-[#0F172A] underline underline-offset-2 sm:hover:text-[#C2410C] focus-visible:text-[#C2410C] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C2410C]/30"
+              className="font-bold text-[#0F172A] underline underline-offset-2 hover:text-[#C2410C] focus-visible:text-[#C2410C] transition-colors outline-none focus-visible:ring-1 focus-visible:ring-[#C2410C] rounded"
             >
               Create account
             </Link>
           </div>
+        </div>
 
-          {/* Demo Account Credentials */}
-          <div className="mt-2 pt-2 border-t border-[#E2DED5]/60 flex flex-wrap items-center justify-center gap-1.5 text-[11px] text-[#64748B]">
-            <span className="font-semibold text-[#334155]">Demo Credentials:</span>
+        {/* Demo Credentials Strip (Requirement 14): inside card at bottom, monospace values with copy button */}
+        {(isDev || showDemoToggle) ? (
+          <div className="mt-3.5 p-2 rounded-lg bg-[#F8F6F0] border border-[#E2DED5] flex items-center justify-between text-[11px] text-[#475569]">
+            <div className="flex items-center gap-2 overflow-hidden">
+              <span className="font-semibold text-[#0F172A] uppercase text-[10px] tracking-wider shrink-0">
+                Demo
+              </span>
+              <span className="font-mono text-[#0F172A] truncate">
+                demo@nimbus.com &middot; Nimbus@123
+              </span>
+            </div>
             <button
               type="button"
-              onClick={() => {
-                setForm({ email: "demo@nimbus.com", password: "Nimbus@123" });
-                setErrors({});
-                setServerError("");
-              }}
-              title="Click to auto-fill demo credentials"
-              className="font-mono-code text-[#C2410C] hover:underline cursor-pointer bg-white px-2 py-0.5 rounded border border-[#E2DED5] transition-colors hover:border-[#C2410C]"
+              onClick={handleCopyCredentials}
+              className="ml-2 px-2 py-1 rounded bg-white border border-[#CBD5E1] hover:border-[#C2410C] text-[11px] font-medium text-[#0F172A] hover:text-[#C2410C] flex items-center gap-1 shrink-0 transition-colors cursor-pointer"
+              title="Copy and fill demo credentials"
             >
-              demo@nimbus.com &bull; Nimbus@123 <span className="text-[10px] text-[#64748B] font-sans">(click to fill)</span>
+              {copied ? (
+                <>
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#059669"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  <span className="text-[#059669] font-semibold">Copied</span>
+                </>
+              ) : (
+                <>
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                  </svg>
+                  <span>Auto-fill</span>
+                </>
+              )}
             </button>
           </div>
-        </div>
+        ) : (
+          <div className="mt-2 text-center">
+            <button
+              type="button"
+              onClick={() => setShowDemoToggle(true)}
+              className="text-[11px] text-[#64748B] hover:text-[#C2410C] underline underline-offset-2 cursor-pointer transition-colors"
+            >
+              Show demo credentials
+            </button>
+          </div>
+        )}
       </AuthLayout>
     </div>
   );

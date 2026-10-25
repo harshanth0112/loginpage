@@ -3,7 +3,8 @@
 @layer base {
   :root {
     --color-ink: #0f172a;
-    --color-paper: #f8f6f0;
+    --color-paper: #f6f4ef;
+    --color-offwhite: #fafaf8;
     --color-paper-card: #ffffff;
     --color-border: #e2ded5;
     --color-border-subtle: #ece8df;
@@ -105,7 +106,23 @@
   animation: markPulse 4s ease-in-out infinite;
 }
 
-/* Compact Laptop / Short Viewport Adjustment: height <= 720px (Rule 7) */
+/* Container query for shortening OAuth button text when card width <= 420px */
+@container (max-width: 420px) {
+  .oauth-btn-long {
+    display: none !important;
+  }
+  .oauth-btn-short {
+    display: inline !important;
+  }
+}
+
+@container (min-width: 421px) {
+  .oauth-btn-short {
+    display: none !important;
+  }
+}
+
+/* Compact Laptop / Short Viewport Adjustment: height <= 720px */
 @media (max-height: 720px) {
   .short-hide {
     display: none !important;
@@ -113,19 +130,31 @@
   .short-hide-subtext {
     display: none !important;
   }
+  .short-hide-desc {
+    display: none !important;
+  }
+  .short-tile-sm {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+  }
+  .short-card-compact {
+    padding: 24px !important;
+  }
   .short-compact-gap {
-    gap: 0.625rem !important; /* 10px */
+    gap: 12px !important;
   }
   .short-compact-space > * + * {
-    margin-top: 0.625rem !important; /* 10px */
+    margin-top: 12px !important;
   }
   .short-compact-input {
-    height: 40px !important;
-    min-height: 40px !important;
+    height: 44px !important;
+    min-height: 44px !important;
   }
   .short-compact-button {
-    height: 42px !important;
-    min-height: 42px !important;
+    height: 44px !important;
+    min-height: 44px !important;
   }
   .short-compact-text {
     font-size: 1.5rem !important; /* 24px */
@@ -176,6 +205,33 @@
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+/* Stat card lift on hover for pointer devices */
+@media (hover: hover) and (pointer: fine) {
+  .stat-card-hover {
+    transition: transform 180ms ease, box-shadow 180ms ease;
+  }
+  .stat-card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.08);
+  }
+}
+
+/* SVG Chart Line drawing animation */
+@keyframes drawChartLine {
+  from {
+    stroke-dashoffset: 1000;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.chart-line-draw {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 0;
+  animation: drawChartLine 500ms ease-out forwards;
 }
 
 /* Touch-safe hover rules: only apply hover styles on devices with cursor pointer */

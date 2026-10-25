@@ -1,5 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { Navigate, useNavigate, useLocation } from "react-router-dom";
+import Sidebar from "../components/Sidebar";
+import TopBar from "../components/TopBar";
+import StatCard from "../components/StatCard";
+import LiquidityChart from "../components/LiquidityChart";
+import ActivityList from "../components/ActivityList";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -366,182 +371,33 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Desktop Fixed Left Sidebar (>= md): 240px collapsible to 72px */}
-      <aside
-        className={`hidden md:flex shrink-0 bg-[#0F1A2B] text-[#F8F6F0] flex-col justify-between p-4 border-r border-[#1E293B] transition-all duration-200 ${
-          sidebarCollapsed ? "w-[72px]" : "w-60"
-        }`}
-      >
-        <div>
-          {/* Logo header + collapse toggle button */}
-          <div className="flex items-center justify-between pb-4 border-b border-[#1E293B] min-h-[44px]">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <svg width="24" height="24" viewBox="0 0 28 28" fill="none" aria-hidden="true" className="shrink-0">
-                <rect x="2" y="2" width="11" height="11" stroke="#F8F6F0" strokeWidth="1.6" />
-                <rect x="15" y="15" width="11" height="11" stroke="#C2410C" strokeWidth="1.6" />
-              </svg>
-              {!sidebarCollapsed && (
-                <span className="text-xs font-bold tracking-widest uppercase text-white truncate">
-                  Nimbus
-                </span>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-              className="min-h-[32px] min-w-[32px] flex items-center justify-center rounded text-[#94A3B8] hover:text-white hover:bg-[#1E293B] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#C2410C]"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                className={`transition-transform duration-200 ${sidebarCollapsed ? "rotate-180" : ""}`}
-              >
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Navigation Links */}
-          <nav className="mt-4 space-y-1">
-            {!sidebarCollapsed && (
-              <span className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] px-3 mb-2">
-                Treasury Console
-              </span>
-            )}
-            {navItems.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setActiveNav(item.id)}
-                title={sidebarCollapsed ? item.label : undefined}
-                className={`w-full min-h-[40px] px-3 py-2 rounded-[4px] text-xs font-medium flex items-center transition-colors cursor-pointer short-sidebar-item focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C2410C] ${
-                  sidebarCollapsed ? "justify-center" : "justify-between"
-                } ${
-                  activeNav === item.id
-                    ? "bg-[#1E293B] text-white"
-                    : "text-[#94A3B8] sm:hover:text-white sm:hover:bg-[#1E293B]/40"
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  {item.icon}
-                  {!sidebarCollapsed && <span>{item.label}</span>}
-                </div>
-                {!sidebarCollapsed && activeNav === item.id && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#C2410C]" aria-hidden="true" />
-                )}
-              </button>
-            ))}
-          </nav>
-        </div>
-
-        {/* Bottom environment badge */}
-        <div className="pt-3 border-t border-[#1E293B] text-[11px] text-[#64748B] space-y-0.5">
-          {!sidebarCollapsed ? (
-            <>
-              <p className="font-mono-code text-slate-400">NODE: us-east-prod-1</p>
-              <p className="text-[10px]">TLS 1.3 Strict Mutual Auth</p>
-            </>
-          ) : (
-            <div className="flex justify-center" title="NODE: us-east-prod-1 • TLS 1.3">
-              <span className="w-2 h-2 rounded-full bg-[#10B981]" />
-            </div>
-          )}
-        </div>
-      </aside>
+      {/* Desktop Fixed Left Sidebar */}
+      <Sidebar
+        activeNav={activeNav}
+        setActiveNav={setActiveNav}
+        sidebarCollapsed={sidebarCollapsed}
+        setSidebarCollapsed={setSidebarCollapsed}
+        navItems={navItems}
+        user={user}
+        initials={initials}
+        onQuickAction={(action) => {
+          if (action === "new_batch") setActiveNav("settlements");
+          if (action === "run_recon") setActiveNav("reconciliations");
+        }}
+      />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 min-h-0 h-dvh overflow-hidden pt-14 md:pt-0">
-        {/* Desktop Top Bar (>= md) */}
-        <header className="hidden md:flex h-13 border-b border-[#E2DED5] bg-[#F8F6F0] px-4 xl:px-6 items-center justify-between shrink-0">
-          {/* Dynamic Breadcrumb */}
-          <div className="flex items-center gap-2 text-xs font-mono-code text-[#64748B]">
-            <span>Console</span>
-            <span>/</span>
-            <span>Production</span>
-            <span>/</span>
-            <span className="text-[#0F172A] font-semibold">
-              {navItems.find((n) => n.id === activeNav)?.label || "Ledger Accounts"}
-            </span>
-          </div>
-
-          {/* Right controls */}
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search console..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-40 lg:w-56 h-8 text-xs bg-white border border-[#E2DED5] rounded-[4px] pl-7 pr-2 text-[#0F172A] placeholder:text-[#94A3B8] outline-none focus-visible:border-[#C2410C] focus-visible:ring-1 focus-visible:ring-[#C2410C]/20"
-              />
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="absolute left-2 top-2 text-[#94A3B8]" aria-hidden="true">
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleExportCSV}
-              className="min-h-[32px] h-8 px-3 rounded-[4px] border border-[#0F172A] text-[11px] font-semibold text-[#0F172A] bg-transparent sm:hover:bg-[#0F172A] sm:hover:text-white transition-colors duration-150 flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F172A]"
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              <span>Export CSV</span>
-            </button>
-
-            {/* User Dropdown */}
-            <div className="relative" ref={userMenuRef}>
-              <button
-                type="button"
-                onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                aria-expanded={userDropdownOpen}
-                aria-haspopup="true"
-                className="min-h-[32px] flex items-center gap-2 pl-1 pr-2 py-0.5 rounded-[4px] hover:bg-[#EAE6DD] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C2410C]"
-              >
-                <span className="h-7 w-7 rounded-full bg-[#0F1A2B] text-white text-[11px] font-bold flex items-center justify-center">
-                  {initials}
-                </span>
-                <span className="text-xs font-semibold text-[#0F172A] hidden lg:inline max-w-[110px] truncate">
-                  {user?.name || "Operator"}
-                </span>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[#64748B]">
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
-
-              {userDropdownOpen && (
-                <div
-                  role="menu"
-                  className="absolute right-0 top-full mt-2 w-52 bg-white rounded-[4px] border border-[#E2DED5] shadow-xl py-1.5 z-50 text-xs select-none"
-                >
-                  <div className="px-3 py-1.5 border-b border-[#ECE8DF]">
-                    <p className="font-semibold text-[#0F172A] truncate">{user?.name}</p>
-                    <p className="text-[11px] text-[#64748B] truncate">{user?.email}</p>
-                  </div>
-                  <button
-                    role="menuitem"
-                    type="button"
-                    onClick={logout}
-                    className="w-full text-left px-3 py-2 text-[#991B1B] hover:bg-[#FEF2F2] font-semibold transition-colors flex items-center justify-between cursor-pointer"
-                  >
-                    <span>Sign out</span>
-                    <span className="text-[10px] font-mono-code">&rarr;</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
+        {/* Desktop Top Bar */}
+        <TopBar
+          user={user}
+          initials={initials}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          onExportCSV={handleExportCSV}
+          onLogout={logout}
+          activeNavTitle={navItems.find((n) => n.id === activeNav)?.label || "Ledger Accounts"}
+        />
 
         {/* Dynamic Main Canvas: Flex Column fitting in viewport */}
         <main className="flex-1 min-h-0 flex flex-col justify-between p-4 xl:p-6 lg:overflow-hidden overflow-y-auto pb-[max(4.5rem,env(safe-area-inset-bottom))] lg:pb-6 gap-3 xl:gap-4 max-h-[700px]:gap-2.5 max-h-[700px]:p-3">
@@ -570,159 +426,70 @@ export default function Dashboard() {
 
               {/* 4 Stat Cards */}
               <div className="grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-3 xl:gap-4 shrink-0">
-                <div className="bg-white border border-[#E2DED5] p-3.5 xl:p-4 short-card-padding rounded-[4px] flex flex-col justify-between">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">Net Volume</span>
-                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0]">+4.2%</span>
-                  </div>
-                  <div className="my-1 font-editorial text-xl lg:text-2xl text-[#0F172A] leading-tight">$42.84M</div>
-                  <span className="short-hide-footnote text-[11px] text-[#64748B] truncate">14-day rolling settlement</span>
-                </div>
-
-                <div className="bg-white border border-[#E2DED5] p-3.5 xl:p-4 short-card-padding rounded-[4px] flex flex-col justify-between">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">Pending</span>
-                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-[#F1F5F9] text-[#475569]">3 batches</span>
-                  </div>
-                  <div className="my-1 font-editorial text-xl lg:text-2xl text-[#0F172A] leading-tight">$1.28M</div>
-                  <span className="short-hide-footnote text-[11px] text-[#64748B] truncate">Next cutoff at 16:30</span>
-                </div>
-
-                <div className="bg-white border border-[#E2DED5] p-3.5 xl:p-4 short-card-padding rounded-[4px] flex flex-col justify-between">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">STP Rate</span>
-                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-[#F1F5F9] text-[#475569]">0.00% fail</span>
-                  </div>
-                  <div className="my-1 font-editorial text-xl lg:text-2xl text-[#0F172A] leading-tight">100%</div>
-                  <span className="short-hide-footnote text-[11px] text-[#64748B] truncate">Straight-through pass</span>
-                </div>
-
-                <div className="bg-white border border-[#E2DED5] p-3.5 xl:p-4 short-card-padding rounded-[4px] flex flex-col justify-between">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">Tier 1 Ratio</span>
-                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-[#F1F5F9] text-[#475569]">+0.8%</span>
-                  </div>
-                  <div className="my-1 font-editorial text-xl lg:text-2xl text-[#0F172A] leading-tight">104.2%</div>
-                  <span className="short-hide-footnote text-[11px] text-[#64748B] truncate">Basel III compliant</span>
-                </div>
+                <StatCard
+                  title="Net Volume"
+                  badgeText="+4.2%"
+                  badgeType="positive"
+                  numericValue={42.84}
+                  prefix="$"
+                  suffix="M"
+                  decimals={2}
+                  trendText="14-day rolling settlement"
+                  trendType="positive"
+                  sparklineData={[34, 35, 37, 36, 39, 41, 42.84]}
+                  sparklineColor="#10B981"
+                  isLoading={isLoading}
+                />
+                <StatCard
+                  title="Pending"
+                  badgeText="3 batches"
+                  badgeType="neutral"
+                  numericValue={1.28}
+                  prefix="$"
+                  suffix="M"
+                  decimals={2}
+                  trendText="Next cutoff at 16:30"
+                  trendType="neutral"
+                  sparklineData={[0.8, 1.4, 0.9, 1.6, 1.1, 1.5, 1.28]}
+                  sparklineColor="#C2410C"
+                  isLoading={isLoading}
+                />
+                <StatCard
+                  title="STP Rate"
+                  badgeText="0.00% fail"
+                  badgeType="neutral"
+                  numericValue={100}
+                  suffix="%"
+                  decimals={0}
+                  trendText="Straight-through pass"
+                  trendType="positive"
+                  sparklineData={[99.8, 99.9, 100, 100, 99.9, 100, 100]}
+                  sparklineColor="#10B981"
+                  isLoading={isLoading}
+                />
+                <StatCard
+                  title="Tier 1 Ratio"
+                  badgeText="+0.8%"
+                  badgeType="neutral"
+                  numericValue={104.2}
+                  suffix="%"
+                  decimals={1}
+                  trendText="Basel III compliant"
+                  trendType="positive"
+                  sparklineData={[102.1, 102.5, 103.0, 103.4, 103.8, 104.0, 104.2]}
+                  sparklineColor="#10B981"
+                  isLoading={isLoading}
+                />
               </div>
 
               {/* Grid Row: Chart (2fr) + Recent Activity (1fr) */}
               <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-3 xl:gap-4 flex-1 min-h-0">
-                {/* 1. Fluid Non-Clipping Vector Chart Card */}
-                <section aria-label="Volume settlement chart" className="h-full min-h-0 bg-white border border-[#E2DED5] p-3.5 xl:p-4 short-card-padding rounded-[4px] flex flex-col justify-between overflow-hidden">
-                  <div className="flex items-center justify-between border-b border-[#ECE8DF] pb-2 shrink-0">
-                    <div>
-                      <h2 className="text-xs font-bold text-[#0F172A] uppercase tracking-wide">Rolling Net Liquidity Volume</h2>
-                      <p className="text-[10px] text-[#64748B]">14 business-day clearing settlement</p>
-                    </div>
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="font-editorial text-lg sm:text-xl text-[#0F172A] font-bold">$42.84M</span>
-                      <span className="text-[10px] font-semibold text-[#065F46] bg-[#ECFDF5] px-1.5 py-0.5 rounded">+4.2%</span>
-                    </div>
-                  </div>
-
-                  {/* SVG Canvas with fixed viewBox (0 0 600 240) and inner padding */}
-                  <div className="w-full flex-1 min-h-0 h-[clamp(200px,32vh,340px)] short-chart-height py-1">
-                    <svg
-                      viewBox="0 0 600 240"
-                      width="100%"
-                      height="100%"
-                      preserveAspectRatio="xMidYMid meet"
-                      overflow="visible"
-                      className="w-full h-full stroke-current text-[#0F1A2B]"
-                      fill="none"
-                    >
-                      {/* Grid lines with 16px left/right margins and 12px top margin */}
-                      <line x1="16" y1="30" x2="584" y2="30" stroke="#ECE8DF" strokeWidth="1" strokeDasharray="3 3" />
-                      <line x1="16" y1="85" x2="584" y2="85" stroke="#ECE8DF" strokeWidth="1" strokeDasharray="3 3" />
-                      <line x1="16" y1="140" x2="584" y2="140" stroke="#ECE8DF" strokeWidth="1" strokeDasharray="3 3" />
-                      <line x1="16" y1="195" x2="584" y2="195" stroke="#E2DED5" strokeWidth="1" />
-
-                      {/* Filled Polygon area underneath */}
-                      <polygon
-                        points="16,175 68,160 120,145 172,155 224,120 276,132 328,98 380,105 432,85 484,92 536,70 584,38 584,195 16,195"
-                        fill="#F8F6F0"
-                      />
-
-                      {/* Main Trend Line with constant 2px stroke and non-scaling-stroke */}
-                      <polyline
-                        points="16,175 68,160 120,145 172,155 224,120 276,132 328,98 380,105 432,85 484,92 536,70 584,38"
-                        stroke="#0F1A2B"
-                        strokeWidth="2"
-                        vectorEffect="non-scaling-stroke"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-
-                      {/* Last point marker at X=584, Y=38 with 16px safe inner margin */}
-                      <g transform="translate(584, 38)">
-                        <circle cx="0" cy="0" r="8" fill="#C2410C" className="live-pulse-ring" />
-                        <circle cx="0" cy="0" r="4" fill="#C2410C" stroke="#FFFFFF" strokeWidth="2" />
-                      </g>
-                    </svg>
-                  </div>
-
-                  {/* X-axis labels with 12px inner padding and right-aligned last item */}
-                  <div className="px-3 pt-2 pb-0.5 border-t border-[#ECE8DF] flex justify-between items-center text-[10px] text-[#64748B] font-mono-code shrink-0">
-                    <span>Oct 10</span>
-                    <span>Oct 14</span>
-                    <span>Oct 18</span>
-                    <span className="text-right font-semibold text-[#0F172A]">Today (Live)</span>
-                  </div>
-                </section>
-
-                {/* 2. Recent Activity Card without Top Gap and with Bottom Scroll Fade */}
-                <section aria-label="Recent activity log" className="h-full min-h-0 bg-white border border-[#E2DED5] rounded-[4px] flex flex-col overflow-hidden">
-                  {/* Fixed Header */}
-                  <div className="px-4 py-3 border-b border-[#ECE8DF] flex items-center justify-between shrink-0">
-                    <h2 className="text-xs font-bold uppercase tracking-wide text-[#0F172A]">Recent Activity</h2>
-                    <span className="text-[11px] font-mono-code text-[#64748B]">{filteredTransactions.length} events</span>
-                  </div>
-
-                  {/* List starts immediately under header at scrollTop 0 */}
-                  <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar relative divide-y divide-[#ECE8DF]">
-                    {filteredTransactions.length === 0 ? (
-                      <div className="p-8 text-center flex flex-col items-center justify-center gap-1.5 text-xs text-[#64748B]">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[#94A3B8]" aria-hidden="true">
-                          <circle cx="11" cy="11" r="8" />
-                          <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                        </svg>
-                        <p className="font-semibold text-[#0F172A]">No transactions found</p>
-                        <p className="text-[11px] text-[#64748B]">{searchQuery ? `No records match "${searchQuery}".` : "No transaction activity recorded."}</p>
-                      </div>
-                    ) : (
-                      filteredTransactions.map((tx) => (
-                        <div
-                          key={tx.ref}
-                          onClick={() => copyReference(tx.ref)}
-                          className="min-h-[64px] px-4 py-3 short-activity-row hover:bg-[#FAF8F5] transition-colors cursor-pointer flex items-center justify-between gap-2"
-                        >
-                          <div className="min-w-0">
-                            <p className="text-xs font-semibold text-[#0F172A] truncate leading-tight">{tx.counterparty}</p>
-                            <p className="short-hide-footnote text-[10px] text-[#64748B] truncate mt-0.5">
-                              <span className="font-mono-code">{tx.ref}</span> &bull; {tx.timestamp}
-                            </p>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <p className="font-mono-code text-xs font-semibold text-[#0F172A] leading-tight">{tx.amount}</p>
-                            <span className={`text-[9px] font-semibold inline-block px-1.5 py-0.2 rounded mt-0.5 ${tx.status === "Settled" ? "text-[#059669] bg-[#ECFDF5]" : "text-[#D97706] bg-[#FEF3C7]"}`}>
-                              {tx.status}
-                            </span>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                    {/* Subtle bottom fade so users visually recognize scrollable overflow */}
-                    <div className="pointer-events-none sticky bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-white to-transparent opacity-80" aria-hidden="true" />
-                  </div>
-
-                  {/* Fixed Footer */}
-                  <div className="px-4 py-2 border-t border-[#ECE8DF] bg-[#FAF8F5] flex items-center justify-between text-[11px] text-[#64748B] shrink-0">
-                    <span>{filteredTransactions.length} events logged</span>
-                    <span className="font-mono-code">{copiedRef ? `Copied ${copiedRef}` : "Click row to copy ID"}</span>
-                  </div>
-                </section>
+                <LiquidityChart isLoading={isLoading} />
+                <ActivityList
+                  searchQuery={searchQuery}
+                  isLoading={isLoading}
+                  onViewAll={() => setActiveNav("settlements")}
+                />
               </div>
             </>
           )}
